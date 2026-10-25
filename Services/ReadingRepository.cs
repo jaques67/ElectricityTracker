@@ -64,6 +64,19 @@ public class ReadingRepository
         _readings[(normalised.Date, normalised.Time)] = normalised;
     }
 
+    /// <summary>Changes only the notes of an existing reading. Returns false if there is no reading at that date and time.</summary>
+    public bool UpdateNotes(DateOnly date, TimeOnly time, string? notes)
+    {
+        var key = (date, ElectricityReading.TruncateToMinutes(time));
+        if (!_readings.TryGetValue(key, out var existing))
+        {
+            return false;
+        }
+
+        _readings[key] = existing with { Notes = ElectricityReading.NormaliseNotes(notes) };
+        return true;
+    }
+
     /// <summary>Loads readings from a CSV file. Returns a description of each malformed row.</summary>
     public async Task<IReadOnlyList<string>> LoadAsync(string path)
     {

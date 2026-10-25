@@ -119,6 +119,30 @@ public partial class MainWindow : Window
         ResetInputs();
     }
 
+    private async void OnDateClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control { DataContext: ReadingRow row })
+        {
+            return;
+        }
+
+        var reading = row.Reading;
+        var notes = await new NotesDialog(reading).ShowDialog<string?>(this);
+        if (notes is null)
+        {
+            return;
+        }
+
+        if (!_repository.UpdateNotes(reading.Date, reading.Time, notes))
+        {
+            ShowError($"No reading found for {FormatKey(reading)}.");
+            return;
+        }
+
+        RefreshReadings(reading);
+        ShowInfo($"Updated notes for {FormatKey(reading)}.");
+    }
+
     private ElectricityReading? ReadInputs()
     {
         if (DateInput.SelectedDate is not { } date)

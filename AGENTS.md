@@ -131,6 +131,17 @@ Use the async `StorageProvider` APIs and call them once the window is shown (for
     display rows of reading + usage) so it can be unit tested, rather than in code-behind.
   - If usage comes out negative (meter replaced or a typo), still show the value rather than hiding
     it or throwing, so the user can spot and fix the bad reading.
+- **Editing notes:** clicking the date of a row in the list lets the user edit that reading's notes
+  (for example an inline `TextBox` in the Notes column, or a small dialog showing the current notes).
+  - Only the notes can be changed. Date, time and reading stay read-only, so the `(Date, Time)` key
+    and the usage values are unaffected.
+  - Apply the same rules as when adding: single line (`AcceptsReturn="False"`), normalised with
+    `ElectricityReading.NormaliseNotes`, and clearing the text removes the notes (`null`).
+  - Let the user confirm the change (Enter or a Save button) or cancel it (Escape or a Cancel
+    button). Cancelling leaves the notes as they were.
+  - Update the reading in the store through a `ReadingRepository` method (for example
+    `UpdateNotes(DateOnly date, TimeOnly time, string? notes)`), not in code-behind, then refresh the
+    list. Like every other change, it's written to the CSV only when the app closes.
 
 ### 5. Saving on close
 

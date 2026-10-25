@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="160"
+        x:Class="ElectricityTracker.NotesDialog"
+        Width="420" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Title="Edit notes">
+    <StackPanel Margin="16" Spacing="8">
+        <TextBlock x:Name="ReadingText" FontWeight="SemiBold" />
+        <TextBox x:Name="NotesInput" AcceptsReturn="False" PlaceholderText="e.g. used tumble dryer" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+            <Button Content="Save" IsDefault="True" Click="OnSaveClick" />
+            <Button Content="Cancel" IsCancel="True" Click="OnCancelClick" />
+        </StackPanel>
+    </StackPanel>
+</Window>

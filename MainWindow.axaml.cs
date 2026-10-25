@@ -15,7 +15,7 @@ public partial class MainWindow : Window
 {
     private readonly SettingsService _settings = new();
     private readonly ReadingRepository _repository = new();
-    private readonly ObservableCollection<ElectricityReading> _displayedReadings = new();
+    private readonly ObservableCollection<ReadingRow> _displayedReadings = new();
 
     private ElectricityReading? _pendingReplacement;
     private bool _isClosingHandled;
@@ -181,18 +181,25 @@ public partial class MainWindow : Window
 
     private void RefreshReadings(ElectricityReading? selected = null)
     {
+        // Usage depends on the neighbouring readings, so rebuild every row whenever the store changes.
         _displayedReadings.Clear();
-        foreach (var reading in _repository.Readings)
+        ReadingRow? selectedRow = null;
+        foreach (var row in _repository.GetRowsWithUsage())
         {
-            _displayedReadings.Add(reading);
+            _displayedReadings.Add(row);
+            if (selected is not null && row.Reading.Date == selected.Date &&
+                row.Reading.Time == ElectricityReading.TruncateToMinutes(selected.Time))
+            {
+                selectedRow = row;
+            }
         }
 
         ReadingHeader.Text = $"Reading ({_repository.Count} total)";
 
-        if (selected is not null)
+        if (selectedRow is not null)
         {
-            ReadingsList.SelectedItem = selected;
-            ReadingsList.ScrollIntoView(selected);
+            ReadingsList.SelectedItem = selectedRow;
+            ReadingsList.ScrollIntoView(selectedRow);
         }
     }
 

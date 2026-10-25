@@ -28,6 +28,23 @@ public class ReadingRepository
 
     public int Count => _readings.Count;
 
+    /// <summary>
+    /// Returns the readings in date-then-time order, each with its usage since the previous reading.
+    /// The first reading has no usage. Negative usage is kept so bad readings stay visible.
+    /// </summary>
+    public IReadOnlyList<ReadingRow> GetRowsWithUsage()
+    {
+        var rows = new List<ReadingRow>(_readings.Count);
+        int? previous = null;
+        foreach (var reading in _readings.Values)
+        {
+            rows.Add(new ReadingRow(reading, reading.Reading - previous));
+            previous = reading.Reading;
+        }
+
+        return rows;
+    }
+
     public bool Contains(DateOnly date, TimeOnly time) =>
         _readings.ContainsKey((date, ElectricityReading.TruncateToMinutes(time)));
 

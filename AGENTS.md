@@ -32,8 +32,8 @@ Suggested layout for new code (keep it small, don't over-engineer):
 ```
 Models/ElectricityReading.cs      // record: DateOnly Date, TimeOnly Time, int Reading, string? Notes
 Services/SettingsService.cs       // load/save the ini file
-Services/ReadingRepository.cs     // in-memory store + CSV load/save
-MainWindow.axaml(.cs)             // input fields, add button, list of readings
+Services/ReadingRepository.cs     // in-memory store + CSV load/save + usage calculation
+MainWindow.axaml(.cs)             // input fields, add button, list of readings with usage
 ```
 
 ## Build and run
@@ -116,6 +116,17 @@ Use the async `StorageProvider` APIs and call them once the window is shown (for
   window, not as exceptions.
 - Show the captured readings (for example in a `ListBox` or `DataGrid`) ordered by date, then time,
   including the notes.
+- Add a **Usage** column to the list: the current entry's reading minus the previous entry's reading,
+  where "previous" is the entry just before it in date-then-time order (it may be on an earlier
+  date). The first entry has no previous reading, so leave its usage blank (or show `—`).
+  - Usage is **derived, never stored**. Don't add it to `ElectricityReading` or write it to the CSV
+    (section 6 is unchanged). Calculate it after the CSV is loaded and again whenever the store
+    changes (add or replace), because inserting a reading between two others changes the usage of
+    the entry after it.
+  - Put the calculation in `Services/` (for example a method on `ReadingRepository` that returns
+    display rows of reading + usage) so it can be unit tested, rather than in code-behind.
+  - If usage comes out negative (meter replaced or a typo), still show the value rather than hiding
+    it or throwing, so the user can spot and fix the bad reading.
 
 ### 5. Saving on close
 
@@ -138,7 +149,8 @@ Date,Time,Reading,Notes
 2026-10-26,08:00,12360,"washing machine, then dryer"
 ```
 
-- Header row: `Date,Time,Reading,Notes`
+- Header row: `Date,Time,Reading,Notes`. Don't add a usage column; usage is worked out from the
+  readings (see section 4).
 - Date `yyyy-MM-dd`, time `HH:mm` (24-hour, no seconds), reading as a plain whole number (no
   decimal point)
 - Notes is always the fourth column; write an empty field when there are no notes. Quote it the

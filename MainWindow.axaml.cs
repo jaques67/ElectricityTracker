@@ -160,7 +160,8 @@ public partial class MainWindow : Window
         return new ElectricityReading(
             DateOnly.FromDateTime(date),
             ElectricityReading.TruncateToMinutes(TimeOnly.FromTimeSpan(time)),
-            (int)value);
+            (int)value,
+            ElectricityReading.NormaliseNotes(NotesInput.Text));
     }
 
     private void ResetInputs()
@@ -169,6 +170,7 @@ public partial class MainWindow : Window
         DateInput.SelectedDate = now.Date;
         TimeInput.SelectedTime = new TimeSpan(now.Hour, now.Minute, 0);
         ReadingInput.Value = null;
+        NotesInput.Text = null;
     }
 
     private void HideReplace()

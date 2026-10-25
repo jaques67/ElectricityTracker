@@ -5,7 +5,8 @@ Guidance for AI coding agents working on **ElectricityTracker**.
 ## Project overview
 
 ElectricityTracker is a cross-platform Avalonia desktop app for capturing electricity meter readings.
-The user enters a **date**, a **time** and a **meter reading**. Readings are kept in memory while the
+The user enters a **date**, a **time** and a **meter reading**, plus optional **notes** (for example
+"used tumble dryer"). Readings are kept in memory while the
 app runs and written to a CSV file when the app closes. The CSV will be used later for analysis, so
 its format must stay stable and machine-readable.
 
@@ -29,7 +30,7 @@ its format must stay stable and machine-readable.
 Suggested layout for new code (keep it small, don't over-engineer):
 
 ```
-Models/ElectricityReading.cs      // record: DateOnly Date, TimeOnly Time, int Reading
+Models/ElectricityReading.cs      // record: DateOnly Date, TimeOnly Time, int Reading, string? Notes
 Services/SettingsService.cs       // load/save the ini file
 Services/ReadingRepository.cs     // in-memory store + CSV load/save
 MainWindow.axaml(.cs)             // input fields, add button, list of readings
@@ -86,6 +87,9 @@ Use the async `StorageProvider` APIs and call them once the window is shown (for
   - `TimeOnly Time`: hours and minutes only, no seconds. Truncate anything finer
     (`new TimeOnly(t.Hour, t.Minute)`).
   - `int Reading`: the meter value, a whole number (no decimals)
+  - `string? Notes`: optional free text about the reading (for example "used tumble dryer").
+    Single line only: trim it, replace any line breaks with spaces, and store `null` when it's empty
+    or whitespace.
 - One date can have many readings, but **the time must be unique within a date**. The key is
   `(Date, Time)`.
 - Recommended store: `SortedDictionary<(DateOnly Date, TimeOnly Time), ElectricityReading>`, or a
@@ -105,10 +109,13 @@ Use the async `StorageProvider` APIs and call them once the window is shown (for
     time truncated to the minute
   - Reading: `NumericUpDown` (`Increment="1"`, `Minimum="0"`) or a validated `TextBox`. Must be a
     non-negative whole number; show a validation error for decimals rather than rounding them.
+  - Notes: optional single-line `TextBox` (`AcceptsReturn="False"`) with a placeholder such as
+    "e.g. used tumble dryer". Leaving it empty is fine.
 - When loading the CSV, also accept old `HH:mm:ss` times and truncate them to the minute.
 - An **Add** button validates the input and adds it to the store. Show validation errors in the
   window, not as exceptions.
-- Show the captured readings (for example in a `ListBox` or `DataGrid`) ordered by date, then time.
+- Show the captured readings (for example in a `ListBox` or `DataGrid`) ordered by date, then time,
+  including the notes.
 
 ### 5. Saving on close
 
@@ -125,14 +132,21 @@ Use the async `StorageProvider` APIs and call them once the window is shown (for
 ### 6. CSV format
 
 ```csv
-Date,Time,Reading
-2026-10-25,07:30,12345
-2026-10-25,19:05,12352
+Date,Time,Reading,Notes
+2026-10-25,07:30,12345,
+2026-10-25,19:05,12352,used tumble dryer
+2026-10-26,08:00,12360,"washing machine, then dryer"
 ```
 
-- Header row: `Date,Time,Reading`
+- Header row: `Date,Time,Reading,Notes`
 - Date `yyyy-MM-dd`, time `HH:mm` (24-hour, no seconds), reading as a plain whole number (no
   decimal point)
+- Notes is always the fourth column; write an empty field when there are no notes. Quote it the
+  RFC 4180 way: wrap the field in double quotes if it contains a comma or a double quote, and double
+  any double quotes inside (`"said ""hi"""`). The loader must handle quoted fields, so split lines
+  with a small hand-written parser rather than `string.Split(',')`.
+- When loading, also accept old 3-column rows (`Date,Time,Reading`, with or without that header)
+  and treat them as having no notes.
 - Always use `CultureInfo.InvariantCulture` for parsing and formatting (no thousands separators),
   whatever the OS locale
 - UTF-8, no BOM

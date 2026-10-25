@@ -12,7 +12,10 @@ namespace ElectricityTracker.Services;
 
 public class ReadingRepository
 {
-    private const string Header = "Date,Time,Reading";
+    private const string Header = "Date,Time,Reading,Notes";
+
+    // Older files had no Notes column; accept their header and rows too.
+    private const string LegacyHeader = "Date,Time,Reading";
     private const string DateFormat = "yyyy-MM-dd";
     private const string TimeFormat = "HH:mm";
 
@@ -31,13 +34,13 @@ public class ReadingRepository
     /// <summary>Adds a reading. Returns false if a reading already exists for that date and time.</summary>
     public bool TryAdd(ElectricityReading reading)
     {
-        var normalised = reading with { Time = ElectricityReading.TruncateToMinutes(reading.Time) };
+        var normalised = Normalise(reading);
         return _readings.TryAdd((normalised.Date, normalised.Time), normalised);
     }
 
     public void AddOrReplace(ElectricityReading reading)
     {
-        var normalised = reading with { Time = ElectricityReading.TruncateToMinutes(reading.Time) };
+        var normalised = Normalise(reading);
         _readings[(normalised.Date, normalised.Time)] = normalised;
     }
 
@@ -50,7 +53,7 @@ public class ReadingRepository
         for (var i = 0; i < lines.Length; i++)
         {
             var line = lines[i].Trim();
-            if (line.Length == 0 || (i == 0 && line.Equals(Header, StringComparison.OrdinalIgnoreCase)))
+            if (line.Length == 0 || (i == 0 && IsHeader(line)))
             {
                 continue;
             }
@@ -85,7 +88,8 @@ public class ReadingRepository
         {
             builder.Append(reading.Date.ToString(DateFormat, CultureInfo.InvariantCulture)).Append(',')
                 .Append(reading.Time.ToString(TimeFormat, CultureInfo.InvariantCulture)).Append(',')
-                .AppendLine(reading.Reading.ToString(CultureInfo.InvariantCulture));
+                .Append(reading.Reading.ToString(CultureInfo.InvariantCulture)).Append(',')
+                .AppendLine(EscapeField(reading.Notes));
         }
 
         var directory = Path.GetDirectoryName(Path.GetFullPath(path))!;
@@ -94,10 +98,21 @@ public class ReadingRepository
         File.Move(tempPath, path, overwrite: true);
     }
 
+    private static ElectricityReading Normalise(ElectricityReading reading) =>
+        reading with
+        {
+            Time = ElectricityReading.TruncateToMinutes(reading.Time),
+            Notes = ElectricityReading.NormaliseNotes(reading.Notes),
+        };
+
+    private static bool IsHeader(string line) =>
+        line.Equals(Header, StringComparison.OrdinalIgnoreCase) ||
+        line.Equals(LegacyHeader, StringComparison.OrdinalIgnoreCase);
+
     private static ElectricityReading? ParseLine(string line)
     {
-        var parts = line.Split(',');
-        if (parts.Length != 3)
+        var parts = SplitLine(line);
+        if (parts is null || parts.Count is < 3 or > 4)
         {
             return null;
         }
@@ -111,6 +126,70 @@ public class ReadingRepository
             return null;
         }
 
-        return new ElectricityReading(date, time, value);
+        var notes = parts.Count == 4 ? parts[3] : null;
+        return new ElectricityReading(date, time, value, notes);
+    }
+
+    /// <summary>Quotes a field when it contains a comma or a double quote (RFC 4180).</summary>
+    private static string EscapeField(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Contains(',') || value.Contains('"')
+            ? $"\"{value.Replace("\"", "\"\"")}\""
+            : value;
+    }
+
+    /// <summary>Splits a CSV line into fields, honouring quotes. Returns null if a quote is unterminated.</summary>
+    private static List<string>? SplitLine(string line)
+    {
+        var fields = new List<string>();
+        var field = new StringBuilder();
+        var inQuotes = false;
+
+        for (var i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+            if (inQuotes)
+            {
+                if (c != '"')
+                {
+                    field.Append(c);
+                }
+                else if (i + 1 < line.Length && line[i + 1] == '"')
+                {
+                    field.Append('"');
+                    i++;
+                }
+                else
+                {
+                    inQuotes = false;
+                }
+            }
+            else if (c == '"')
+            {
+                inQuotes = true;
+            }
+            else if (c == ',')
+            {
+                fields.Add(field.ToString());
+                field.Clear();
+            }
+            else
+            {
+                field.Append(c);
+            }
+        }
+
+        if (inQuotes)
+        {
+            return null;
+        }
+
+        fields.Add(field.ToString());
+        return fields;
     }
 }

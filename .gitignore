@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Junie MCP config backup
+.junie/mcp/mcp.json.bak

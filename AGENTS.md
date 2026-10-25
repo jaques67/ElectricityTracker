@@ -119,6 +119,10 @@ Use the async `StorageProvider` APIs and call them once the window is shown (for
 - Add a **Usage** column to the list: the current entry's reading minus the previous entry's reading,
   where "previous" is the entry just before it in date-then-time order (it may be on an earlier
   date). The first entry has no previous reading, so leave its usage blank (or show `—`).
+  - When the previous entry is more than one calendar day earlier (days = difference between the two
+    dates, ignoring the time), show the full usage followed by the daily average, as
+    `usage / usage÷days` with the average to one decimal place, for example `30 / 10.0` for 30 units
+    over 3 days. For entries on the same day or the next day, show just the usage.
   - Usage is **derived, never stored**. Don't add it to `ElectricityReading` or write it to the CSV
     (section 6 is unchanged). Calculate it after the CSV is loaded and again whenever the store
     changes (add or replace), because inserting a reading between two others changes the usage of

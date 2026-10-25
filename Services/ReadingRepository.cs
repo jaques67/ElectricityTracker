@@ -35,11 +35,14 @@ public class ReadingRepository
     public IReadOnlyList<ReadingRow> GetRowsWithUsage()
     {
         var rows = new List<ReadingRow>(_readings.Count);
-        int? previous = null;
+        ElectricityReading? previous = null;
         foreach (var reading in _readings.Values)
         {
-            rows.Add(new ReadingRow(reading, reading.Reading - previous));
-            previous = reading.Reading;
+            rows.Add(previous is null
+                ? new ReadingRow(reading, null, null)
+                : new ReadingRow(reading, reading.Reading - previous.Reading,
+                    reading.Date.DayNumber - previous.Date.DayNumber));
+            previous = reading;
         }
 
         return rows;

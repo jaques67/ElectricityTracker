@@ -43,7 +43,8 @@ public class ReadingRepository
         foreach (var reading in _readings.Values)
         {
             var period = tariff.PeriodStart(reading.Date);
-            if (period != currentPeriod)
+            var isPeriodStart = period != currentPeriod;
+            if (isPeriodStart)
             {
                 currentPeriod = period;
                 periodTotal = 0m;
@@ -59,7 +60,7 @@ public class ReadingRepository
                 var cost = usage * tariff.RatePerKWh;
                 periodTotal += cost;
                 rows.Add(new ReadingRow(reading, usage, reading.Date.DayNumber - previous.Date.DayNumber, cost,
-                    periodTotal));
+                    periodTotal, isPeriodStart));
             }
 
             previous = reading;

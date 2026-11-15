@@ -21,12 +21,14 @@ public partial class MainWindow : Window
 
     private ElectricityReading? _pendingReplacement;
     private bool _isClosingHandled;
+    private bool _newestFirst = true;
 
     public MainWindow()
     {
         InitializeComponent();
 
         ReadingsList.ItemsSource = _displayedReadings;
+        ReadingsList.ContainerPrepared += OnReadingContainerPrepared;
         ResetInputs();
 
         Opened += OnOpened;
@@ -215,11 +217,12 @@ public partial class MainWindow : Window
     private void RefreshReadings(ElectricityReading? selected = null)
     {
         // Usage depends on the neighbouring readings, so rebuild every row whenever the store changes.
-        // The newest reading is shown first.
+        // The newest reading is shown first unless the user has reversed the order.
         var tariff = _settings.Tariff;
+        var rows = _repository.GetRowsWithUsage(tariff);
         _displayedReadings.Clear();
         ReadingRow? selectedRow = null;
-        foreach (var row in _repository.GetRowsWithUsage(tariff).Reverse())
+        foreach (var row in _newestFirst ? rows.Reverse() : rows)
         {
             _displayedReadings.Add(row);
             if (selected is not null && row.Reading.Date == selected.Date &&
@@ -242,6 +245,19 @@ public partial class MainWindow : Window
             ReadingsList.SelectedItem = selectedRow;
             ReadingsList.ScrollIntoView(selectedRow);
         }
+    }
+
+    private void OnDateHeaderClick(object? sender, RoutedEventArgs e)
+    {
+        _newestFirst = !_newestFirst;
+        DateHeader.Text = _newestFirst ? "Date ▼" : "Date ▲";
+        RefreshReadings(ReadingsList.SelectedItem is ReadingRow row ? row.Reading : null);
+    }
+
+    private static void OnReadingContainerPrepared(object? sender, ContainerPreparedEventArgs e)
+    {
+        // Containers are reused, so set the class on every item rather than only adding it.
+        e.Container.Classes.Set("periodStart", e.Container.DataContext is ReadingRow { IsPeriodStart: true });
     }
 
     private async void OnClosing(object? sender, WindowClosingEventArgs e)

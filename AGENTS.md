@@ -126,6 +126,8 @@ Use the async `StorageProvider` APIs and call them once the window is shown (for
 - Show the captured readings (for example in a `ListBox` or `DataGrid`) with the **newest first**
   (reverse date-then-time order), including the notes. The store, usage calculation and CSV stay in
   ascending order; only the display is reversed.
+  Clicking the **Date** column heading toggles between newest first (`Date ▼`) and oldest first
+  (`Date ▲`).
 - Add a **Usage** column to the list: the current entry's reading minus the previous entry's reading,
   where "previous" is the entry just before it in date-then-time order (it may be on an earlier
   date). The first entry has no previous reading, so leave its usage blank (or show `—`).
@@ -144,7 +146,8 @@ Use the async `StorageProvider` APIs and call them once the window is shown (for
 - Add **Cost** (usage × `RatePerKWh`) and **Period total** columns. Period total is the running cost
   within the reading's billing period: a reading's usage counts towards the period its date falls in,
   and the total starts again at the first reading on or after each reset date. Show a summary of the
-  current period's usage and cost above the list. Like usage, these are derived and never stored.
+  current period's usage and cost above the list. Highlight the row where the period total resets in light gray
+  (a dark gray in the dark theme). Like usage, these are derived and never stored.
 - **Editing notes:** clicking the date of a row in the list lets the user edit that reading's notes
   (for example an inline `TextBox` in the Notes column, or a small dialog showing the current notes).
   - Only the notes can be changed. Date, time and reading stay read-only, so the `(Date, Time)` key

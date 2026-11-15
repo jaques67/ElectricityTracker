@@ -1,6 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -46,6 +48,13 @@ public partial class MainWindow : Window
     private async Task InitialiseDataAsync()
     {
         _settings.Load();
+        if (!_settings.HasEnergySettings)
+        {
+            // Write the default rate and reset day so the user can find and change them.
+            _settings.Save();
+        }
+
+        RefreshReadings();
 
         var path = _settings.CsvPath;
         if (path is null || !File.Exists(path))
@@ -206,9 +215,11 @@ public partial class MainWindow : Window
     private void RefreshReadings(ElectricityReading? selected = null)
     {
         // Usage depends on the neighbouring readings, so rebuild every row whenever the store changes.
+        // The newest reading is shown first.
+        var tariff = _settings.Tariff;
         _displayedReadings.Clear();
         ReadingRow? selectedRow = null;
-        foreach (var row in _repository.GetRowsWithUsage())
+        foreach (var row in _repository.GetRowsWithUsage(tariff).Reverse())
         {
             _displayedReadings.Add(row);
             if (selected is not null && row.Reading.Date == selected.Date &&
@@ -219,6 +230,12 @@ public partial class MainWindow : Window
         }
 
         ReadingHeader.Text = $"Reading ({_repository.Count} total)";
+
+        var summary = _repository.GetPeriodSummary(tariff, DateOnly.FromDateTime(DateTime.Now));
+        PeriodSummaryText.Text =
+            $"Current period {summary.Start:yyyy-MM-dd} to {summary.End.AddDays(-1):yyyy-MM-dd}: " +
+            $"{summary.Usage.ToString(CultureInfo.InvariantCulture)} kWh, {ReadingRow.FormatMoney(summary.Cost)} " +
+            $"at ${tariff.RatePerKWh.ToString(CultureInfo.InvariantCulture)}/kWh (resets on day {tariff.ResetDay})";
 
         if (selectedRow is not null)
         {

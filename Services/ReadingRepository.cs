@@ -29,23 +29,61 @@ public class ReadingRepository
     public int Count => _readings.Count;
 
     /// <summary>
-    /// Returns the readings in date-then-time order, each with its usage since the previous reading.
-    /// The first reading has no usage. Negative usage is kept so bad readings stay visible.
+    /// Returns the readings in date-then-time order, each with its usage since the previous reading, the cost of
+    /// that usage and the running cost total for its billing period. A reading's usage counts towards the period
+    /// its date falls in, and the total starts again with the first reading on or after each reset date.
+    /// The first reading has no usage. Negative usage (and cost) is kept so bad readings stay visible.
     /// </summary>
-    public IReadOnlyList<ReadingRow> GetRowsWithUsage()
+    public IReadOnlyList<ReadingRow> GetRowsWithUsage(EnergyTariff tariff)
     {
         var rows = new List<ReadingRow>(_readings.Count);
         ElectricityReading? previous = null;
+        DateOnly? currentPeriod = null;
+        var periodTotal = 0m;
         foreach (var reading in _readings.Values)
         {
-            rows.Add(previous is null
-                ? new ReadingRow(reading, null, null)
-                : new ReadingRow(reading, reading.Reading - previous.Reading,
-                    reading.Date.DayNumber - previous.Date.DayNumber));
+            var period = tariff.PeriodStart(reading.Date);
+            if (period != currentPeriod)
+            {
+                currentPeriod = period;
+                periodTotal = 0m;
+            }
+
+            if (previous is null)
+            {
+                rows.Add(new ReadingRow(reading, null, null, null, null));
+            }
+            else
+            {
+                var usage = reading.Reading - previous.Reading;
+                var cost = usage * tariff.RatePerKWh;
+                periodTotal += cost;
+                rows.Add(new ReadingRow(reading, usage, reading.Date.DayNumber - previous.Date.DayNumber, cost,
+                    periodTotal));
+            }
+
             previous = reading;
         }
 
         return rows;
+    }
+
+    /// <summary>Totals the usage and cost of the readings in the billing period that contains the date.</summary>
+    public PeriodSummary GetPeriodSummary(EnergyTariff tariff, DateOnly date)
+    {
+        var start = tariff.PeriodStart(date);
+        var usage = 0;
+        var cost = 0m;
+        foreach (var row in GetRowsWithUsage(tariff))
+        {
+            if (row.Usage is { } rowUsage && tariff.PeriodStart(row.Reading.Date) == start)
+            {
+                usage += rowUsage;
+                cost += row.Cost ?? 0m;
+            }
+        }
+
+        return new PeriodSummary(start, tariff.NextPeriodStart(date), usage, cost);
     }
 
     public bool Contains(DateOnly date, TimeOnly time) =>
